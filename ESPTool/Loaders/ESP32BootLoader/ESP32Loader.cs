@@ -157,6 +157,27 @@ namespace EspDotNet.Loaders.ESP32BootLoader
         }
 
         /// <summary>
+        /// Gets the chip ID via GET_SECURITY_INFO command (0x14).
+        /// Supported on ESP32-S3, C3, C6, H2 and later.
+        /// </summary>
+        public async Task<int> GetChipIdAsync(CancellationToken token)
+        {
+            var request = new RequestCommandBuilder()
+                .WithCommand(0x14)
+                .Build();
+
+            var response = await _commandExecutor.ExecuteCommandAsync(request, token);
+            if (!response.Success)
+                throw new Exception("GET_SECURITY_INFO failed");
+
+            // Response: 4 bytes flags + 8 bytes key data + 4 bytes chip_id + 4 bytes api_version
+            if (response.Payload.Length >= 16)
+                return BitConverter.ToInt32(response.Payload, 12);
+
+            throw new Exception("GET_SECURITY_INFO response too short for chip ID");
+        }
+
+        /// <summary>
         /// Changes the baud rate for communication in ESP32.
         /// </summary>
         /// <param name="baud">The new baud rate to set.</param>

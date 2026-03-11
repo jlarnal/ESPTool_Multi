@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 
 namespace EspDotNet.Tools.Firmware
 {
-    public class DefaultFirmwareProviders
+    public partial class DefaultFirmwareProviders
     {
         public static IFirmwareProvider GetSoftloaderForDevice(ChipTypes chipType)
         {
@@ -46,7 +46,7 @@ namespace EspDotNet.Tools.Firmware
         private static Stub GetStub(string resourceName)
         {
             string json = ReadEmbeddedJson(resourceName);
-            return JsonSerializer.Deserialize<Stub>(json)
+            return JsonSerializer.Deserialize(json, StubJsonContext.Default.Stub)
                 ?? throw new Exception($"Failed to deserialize JSON from resource: {resourceName}");
         }
 
@@ -61,6 +61,9 @@ namespace EspDotNet.Tools.Firmware
             using StreamReader reader = new StreamReader(stream);
             return reader.ReadToEnd();
         }
+
+        [JsonSerializable(typeof(Stub))]
+        private partial class StubJsonContext : JsonSerializerContext;
 
         class Stub
         {

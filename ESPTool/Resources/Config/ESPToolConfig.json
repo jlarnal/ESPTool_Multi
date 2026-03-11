@@ -1,20 +1,17 @@
 {
-  "BootloaderSequence": [
-    {
-      "Dtr": false,
-      "Rts": true,
-      "Delay": "00:00:00.500"
-    },
-    {
-      "Dtr": true,
-      "Rts": false,
-      "Delay": "00:00:00.500"
-    },
-    {
-      "Dtr": false,
-      "Rts": false,
-      "Delay": "00:00:00.000"
-    }
+  "BootloaderSequences": [
+    [
+      { "Dtr": false, "Rts": false, "Delay": "00:00:00.100" },
+      { "Dtr": true, "Delay": "00:00:00.100" },
+      { "Rts": true, "Delay": "00:00:00.000" },
+      { "Dtr": false, "Rts": true, "Delay": "00:00:00.100" },
+      { "Dtr": false, "Rts": false, "Delay": "00:00:00.000" }
+    ],
+    [
+      { "Dtr": false, "Rts": true, "Delay": "00:00:00.100" },
+      { "Dtr": true, "Rts": false, "Delay": "00:00:00.050" },
+      { "Dtr": false, "Rts": false, "Delay": "00:00:00.000" }
+    ]
   ],
   "ResetSequence": [
     {

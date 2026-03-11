@@ -2,6 +2,7 @@
   "ChipType": "ESP32c3",
   "FlashBlockSize": 1024,
   "RamBlockSize": 6144,
-  "MagicRegisterValue": 456216687
+  "MagicRegisterValue": 456216687,
+  "ImageChipId": 5
 }
 

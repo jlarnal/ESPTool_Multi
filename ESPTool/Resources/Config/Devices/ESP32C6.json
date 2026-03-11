@@ -1,0 +1,6 @@
+{
+  "ChipType": "ESP32c6",
+  "FlashBlockSize": 1024,
+  "RamBlockSize": 6144,
+  "ImageChipId": 13
+}

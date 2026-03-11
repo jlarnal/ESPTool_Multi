@@ -19,7 +19,7 @@ namespace EspDotNet.Config
             try
             {
                 string json = ReadEmbeddedJson(resourceName);
-                var config = JsonSerializer.Deserialize<ESPToolConfig>(json) ?? new ESPToolConfig();
+                var config = JsonSerializer.Deserialize(json, EspJsonContext.Default.ESPToolConfig) ?? new ESPToolConfig();
                 config.Devices = LoadDefaultDevices();
 
                 return config;
@@ -58,15 +58,8 @@ namespace EspDotNet.Config
         /// </summary>
         private static DeviceConfig LoadDeviceConfig(string resourceName)
         {
-            var options = new JsonSerializerOptions
-            {
-                Converters =
-                {
-                    new JsonStringEnumConverter()
-                }
-            };
             string json = ReadEmbeddedJson(resourceName);
-            return JsonSerializer.Deserialize<DeviceConfig>(json, options)
+            return JsonSerializer.Deserialize(json, EspJsonContext.Default.DeviceConfig)
                 ?? throw new Exception($"Failed to deserialize JSON from resource: {resourceName}");
         }
 

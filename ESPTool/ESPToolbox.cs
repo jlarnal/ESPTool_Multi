@@ -39,7 +39,7 @@ namespace EspDotNet
 
         public async Task<ILoader> StartBootloaderAsync(Communicator communicator, CancellationToken token = default)
         {
-            var bootloader = new BootloaderTool(communicator, _config.BootloaderSequence);
+            var bootloader = new BootloaderTool(communicator, _config.BootloaderSequences);
             return await bootloader.StartAsync(token);
         }
 
@@ -139,7 +139,7 @@ namespace EspDotNet
             await ResetDeviceAsync(communicator, token);
         }
 
-        private DeviceConfig GetDeviceConfig(ChipTypes chipType)
+        internal DeviceConfig GetDeviceConfig(ChipTypes chipType)
         {
             return _config.Devices.FirstOrDefault(d => d.ChipType == chipType)
                 ?? throw new InvalidOperationException($"No device config found for {chipType}");

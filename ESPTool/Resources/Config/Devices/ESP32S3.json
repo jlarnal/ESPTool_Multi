@@ -3,6 +3,7 @@
   "FlashBlockSize": 1024,
   "RamBlockSize": 6144,
   "MagicRegisterValue": 9,
+  "ImageChipId": 9,
   "EFlags": {
     "BaseMacAddress": {
       "Address": 1610641476,

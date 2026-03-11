@@ -2,7 +2,7 @@
 {
     public class Frame
     {
-        public byte[] Data { get; set; }
+        public byte[] Data { get; set; } = Array.Empty<byte>();
 
         public Frame()
         {

@@ -2,6 +2,7 @@
   "ChipType": "ESP32s2",
   "FlashBlockSize": 1024,
   "RamBlockSize": 6144,
-  "MagicRegisterValue": 1990
+  "MagicRegisterValue": 1990,
+  "ImageChipId": 2
 }
 

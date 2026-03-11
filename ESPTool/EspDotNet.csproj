@@ -15,6 +15,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <InternalsVisibleTo Include="EspDotNet.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <Compile Remove="Tools\GetAddressesTool.cs" />
 	</ItemGroup>
 
@@ -24,6 +28,7 @@
 	  <None Remove="Resources\Config\Devices\ESP32H2.json" />
 	  <None Remove="Resources\Config\Devices\ESP32S2.json" />
 	  <None Remove="Resources\Config\Devices\ESP32S3.json" />
+	  <None Remove="Resources\Config\Devices\ESP32C6.json" />
 	  <None Remove="Resources\Config\Devices\ESP8266.json" />
 	  <None Remove="Resources\stub\stub_flasher_32.json" />
 	  <None Remove="Resources\stub\stub_flasher_32c2.json" />
@@ -46,6 +51,7 @@
 	  <EmbeddedResource Include="Resources\Config\Devices\ESP32H2.json" />
 	  <EmbeddedResource Include="Resources\Config\Devices\ESP32S2.json" />
 	  <EmbeddedResource Include="Resources\Config\Devices\ESP32S3.json" />
+	  <EmbeddedResource Include="Resources\Config\Devices\ESP32C6.json" />
 	  <EmbeddedResource Include="Resources\Config\Devices\ESP8266.json" />
 	  <EmbeddedResource Include="Resources\Config\ESPToolConfig.json" />
 	  <EmbeddedResource Include="Resources\stub\stub_flasher_32.json" />

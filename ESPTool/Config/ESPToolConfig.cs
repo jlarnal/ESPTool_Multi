@@ -5,7 +5,7 @@ namespace EspDotNet.Config
     public class ESPToolConfig
     {
         public List<DeviceConfig> Devices { get; set; } = [];
-        public List<PinSequenceStep> BootloaderSequence { get; set; } = [];
+        public List<List<PinSequenceStep>> BootloaderSequences { get; set; } = [];
         public List<PinSequenceStep> ResetSequence { get; set; } = [];
     }
 }
