@@ -18,14 +18,13 @@ static async Task<int> RunAsync(string[] args)
         return 0;
     }
 
-    if (!TryParseArgs(args, out var ports, out var baudRate, out var verify, out var segments, out var error))
+    if (!TryParseArgs(args, out var command, out var ports, out var baudRate, out var verify, out var segments, out var error))
     {
         Console.Error.WriteLine($"Error: {error}");
         Console.Error.WriteLine("Run with --help for usage information.");
         return 1;
     }
 
-    var firmware = LoadFirmware(segments);
     var options = new ParallelFlashOptions { BaudRate = baudRate, Verify = verify };
     var toolbox = new ESPToolbox();
     var flasher = new ParallelFlasher(toolbox);
@@ -44,7 +43,17 @@ static async Task<int> RunAsync(string[] args)
 
     try
     {
-        var result = await flasher.FlashAsync(ports, firmware, options, progress, cts.Token);
+        ParallelFlashResult result;
+
+        if (command == "erase_flash")
+        {
+            result = await flasher.EraseAsync(ports, options, progress, cts.Token);
+        }
+        else
+        {
+            var firmware = LoadFirmware(segments);
+            result = await flasher.FlashAsync(ports, firmware, options, progress, cts.Token);
+        }
 
         if (!result.AllSucceeded)
         {
@@ -62,7 +71,8 @@ static async Task<int> RunAsync(string[] args)
         }
 
         Console.WriteLine();
-        Console.WriteLine("All ports flashed successfully.");
+        var verb = command == "erase_flash" ? "erased" : "flashed";
+        Console.WriteLine($"All ports {verb} successfully.");
         return 0;
     }
     catch (InvalidOperationException ex) when (ex.Message.Contains("Chip type mismatch"))
@@ -89,12 +99,14 @@ static bool HasFlag(string[] args, string shortForm, string longForm)
 
 static bool TryParseArgs(
     string[] args,
+    out string command,
     out List<string> ports,
     out int baudRate,
     out bool verify,
     out List<(uint offset, string filePath)> segments,
     out string? error)
 {
+    command = "";
     ports = new List<string>();
     baudRate = 460800;
     verify = true;
@@ -134,7 +146,12 @@ static bool TryParseArgs(
                 // Handled before TryParseArgs is called
                 break;
 
+            case "erase_flash":
+                command = "erase_flash";
+                break;
+
             case "write_flash":
+                command = "write_flash";
                 i++;
                 while (i + 1 < args.Length)
                 {
@@ -172,7 +189,13 @@ static bool TryParseArgs(
         return false;
     }
 
-    if (segments.Count == 0)
+    if (string.IsNullOrEmpty(command))
+    {
+        error = "No command specified. Use 'write_flash' or 'erase_flash'.";
+        return false;
+    }
+
+    if (command == "write_flash" && segments.Count == 0)
     {
         error = "No flash segments specified. Use: write_flash <offset> <file> [<offset> <file> ...]";
         return false;
@@ -203,11 +226,15 @@ static void PrintHelp()
     EspTool_Multi — Parallel ESP32 flash tool
 
     USAGE:
-        EspTool_Multi [OPTIONS] write_flash <SEGMENT>...
+        EspTool_Multi [OPTIONS] <COMMAND>
 
-    SEGMENT:
-        <offset> <file>     Flash <file> at <offset> (hex or decimal).
-                            Repeat for multiple segments.
+    COMMANDS:
+        write_flash <offset> <file> [<offset> <file> ...]
+            Flash one or more firmware segments to all target devices.
+            Offsets can be hex (0x1000) or decimal (4096).
+
+        erase_flash
+            Erase the entire flash memory on all target devices.
 
     OPTIONS:
         -p, --port <PORTS>  Serial port(s), comma-separated.
@@ -225,6 +252,9 @@ static void PrintHelp()
         -V, --version       Show version and exit.
 
     EXAMPLES:
+        Erase all boards:
+            EspTool_Multi -p COM8,COM9,COM10 erase_flash
+
         Flash a single board:
             EspTool_Multi -p COM8 write_flash 0x0 bootloader.bin 0x8000 partitions.bin 0x10000 app.bin
 
@@ -242,7 +272,7 @@ static void PrintHelp()
         - A paste-ready retry command is printed for any ports that fail.
 
     EXIT CODES:
-        0    All ports flashed (and verified) successfully.
+        0    All ports completed successfully.
         1    One or more ports failed, or invalid arguments.
         2    Chip type mismatch across ports (strict homogeneous check).
         130  Cancelled by user (Ctrl+C).

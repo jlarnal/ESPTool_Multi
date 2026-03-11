@@ -1,20 +1,31 @@
 # EspTool_Multi — CLI Usage Guide
 
-Parallel ESP32 flash tool. Flashes identical firmware to one or more ESP32 boards simultaneously over serial, with MD5 verification, automatic retry, and interleaved round-robin writes.
+Parallel ESP32 flash tool. Flashes identical firmware to one or more ESP32 boards simultaneously over serial, with MD5 verification, automatic retry, and interleaved round-robin writes. Also supports parallel full-chip erase.
 
 ## Quick Start
 
 ```bash
-EspTool_Multi -p COM8 write_flash 0x0 bootloader.bin 0x10000 firmware.bin
+# Flash three boards at once
+EspTool_Multi -p COM8,COM9,COM10 write_flash 0x0 bootloader.bin 0x10000 firmware.bin
+
+# Erase three boards at once
+EspTool_Multi -p COM8,COM9,COM10 erase_flash
 ```
 
 ## Syntax
 
 ```
-EspTool_Multi [OPTIONS] write_flash <offset> <file> [<offset> <file> ...]
+EspTool_Multi [OPTIONS] <COMMAND>
 ```
 
-Options can appear in any order before `write_flash`. After `write_flash`, all remaining arguments are parsed as `<offset> <file>` pairs.
+Options can appear in any order before the command.
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `write_flash <offset> <file> [...]` | Flash one or more firmware segments to all target devices. |
+| `erase_flash` | Erase the entire flash memory on all target devices. |
 
 ---
 
@@ -65,7 +76,7 @@ EspTool_Multi -p COM8 -b 921600 write_flash ...
 
 ### `-n, --no-verify`
 
-Skip the MD5 verification pass after each flash segment. By default, every segment is verified by reading back its MD5 hash from the chip and comparing against the source file.
+Skip the MD5 verification pass after each flash segment. By default, every segment is verified by reading back its MD5 hash from the chip and comparing against the source file. Only applies to `write_flash`.
 
 ```bash
 # With verification (default)
@@ -78,9 +89,51 @@ EspTool_Multi -p COM8 --no-verify write_flash 0x10000 firmware.bin
 
 ---
 
-## Flash Segments
+## Commands
 
-After `write_flash`, provide one or more `<offset> <file>` pairs. Offsets can be hex (`0x1000`) or decimal (`4096`).
+### `erase_flash`
+
+Erases the entire flash memory on all target devices in parallel. No firmware files are needed. After erasing, devices are reset.
+
+```bash
+# Erase a single board
+EspTool_Multi -p COM8 erase_flash
+
+# Erase three boards in parallel
+EspTool_Multi -p COM8,COM9,COM10 erase_flash
+
+# Erase at a specific baud rate
+EspTool_Multi -p COM8,COM9 -b 115200 erase_flash
+```
+
+#### Example output
+
+```
+[COM8 ] BOOT        syncing...
+[COM9 ] BOOT        syncing...
+[COM10] BOOT        syncing...
+[COM8 ] BOOT   100% synced
+[COM8 ] CHIP   100% ESP32c6
+[COM8 ] STUB        uploading...
+[COM8 ] STUB   100% complete
+[COM8 ] BAUD   100% 460800
+...
+[COM8 ] ERASE       erasing...
+[COM9 ] ERASE       erasing...
+[COM10] ERASE       erasing...
+[COM8 ] ERASE  100% complete
+[COM9 ] ERASE  100% complete
+[COM10] ERASE  100% complete
+[COM8 ] RESET  100% complete
+[COM9 ] RESET  100% complete
+[COM10] RESET  100% complete
+
+All ports erased successfully.
+```
+
+### `write_flash`
+
+Flash one or more firmware segments to all target devices. Provide `<offset> <file>` pairs after the command. Offsets can be hex (`0x1000`) or decimal (`4096`).
 
 ```bash
 # Single segment
@@ -97,7 +150,9 @@ EspTool_Multi -p COM8 write_flash \
 EspTool_Multi -p COM8 write_flash 0 bootloader.bin 32768 partitions.bin 65536 firmware.bin
 ```
 
-### Common ESP32 Flash Layouts
+---
+
+## Common Flash Layouts
 
 **ESP-IDF / PlatformIO (4 MB flash):**
 
@@ -136,6 +191,20 @@ EspTool_Multi -p COM3 write_flash \
 ---
 
 ## Parallel Flashing Examples
+
+### Erase and reprogram a batch
+
+```bash
+# Wipe everything first
+EspTool_Multi -p COM8,COM9,COM10 erase_flash
+
+# Then flash fresh firmware
+EspTool_Multi -p COM8,COM9,COM10 write_flash \
+    0x0      bootloader.bin \
+    0x8000   partitions.bin \
+    0x10000  firmware.bin \
+    0x300000 littlefs.bin
+```
 
 ### Two boards
 
@@ -214,6 +283,7 @@ All ports flashed successfully.
 | `CHIP`   | Detecting chip type                            |
 | `STUB`   | Uploading stub flasher to RAM                  |
 | `BAUD`   | Switching to target baud rate                  |
+| `ERASE`  | Erasing entire flash memory                    |
 | `FLASH`  | Writing compressed data to flash               |
 | `VERIFY` | MD5 hash verification                          |
 | `RESET`  | Hard-resetting the chip into normal boot       |
@@ -258,7 +328,7 @@ You can copy-paste the retry command directly into your terminal.
 
 | Code | Meaning                                               |
 |------|-------------------------------------------------------|
-| `0`  | All ports flashed (and verified) successfully.        |
+| `0`  | All ports completed successfully.                     |
 | `1`  | One or more ports failed, or invalid arguments.       |
 | `2`  | Chip type mismatch — all ports must be the same chip. |
 | `130` | Cancelled by user (Ctrl+C).                          |
@@ -342,6 +412,16 @@ using EspDotNet;
 using EspDotNet.Parallel;
 using EspDotNet.Tools.Firmware;
 
+var flasher = new ParallelFlasher(new ESPToolbox());
+var ports = new[] { "COM8", "COM9", "COM10" };
+var options = new ParallelFlashOptions { BaudRate = 460800, Verify = true };
+var progress = new Progress<ParallelFlashProgress>(p =>
+    Console.WriteLine($"[{p.Port}] {p.Phase} {p.Percent}% {p.Detail}"));
+
+// Erase all boards
+var eraseResult = await flasher.EraseAsync(ports, options, progress);
+
+// Flash all boards
 var firmware = new FirmwareProvider(
     entryPoint: 0x00000000,
     segments: new List<IFirmwareSegmentProvider>
@@ -350,21 +430,7 @@ var firmware = new FirmwareProvider(
         new FirmwareSegmentProvider(0x10000, File.ReadAllBytes("firmware.bin")),
     });
 
-var options = new ParallelFlashOptions
-{
-    BaudRate = 460800,
-    Verify = true,
-};
+var flashResult = await flasher.FlashAsync(ports, firmware, options, progress);
 
-var progress = new Progress<ParallelFlashProgress>(p =>
-    Console.WriteLine($"[{p.Port}] {p.Phase} {p.Percent}% {p.Detail}"));
-
-var flasher = new ParallelFlasher(new ESPToolbox());
-var result = await flasher.FlashAsync(
-    ports: new[] { "COM8", "COM9", "COM10" },
-    firmware: firmware,
-    options: options,
-    progress: progress);
-
-Console.WriteLine(result.AllSucceeded ? "Done!" : result.RetryCommand);
+Console.WriteLine(flashResult.AllSucceeded ? "Done!" : flashResult.RetryCommand);
 ```
