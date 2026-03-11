@@ -1,6 +1,6 @@
 # EspTool_Multi — CLI Usage Guide
 
-Parallel ESP32 flash tool. Flashes identical firmware to one or more ESP32 boards simultaneously over serial, with MD5 verification, automatic retry, and interleaved round-robin writes. Also supports parallel full-chip erase.
+Parallel ESP32 flash tool. Flashes identical firmware to one or more ESP32 boards simultaneously over serial, with MD5 verification, automatic retry, and interleaved round-robin writes. Also supports parallel full-chip erase and selective region erase.
 
 ## Quick Start
 
@@ -26,6 +26,7 @@ Options can appear in any order before the command.
 |---------|-------------|
 | `write_flash <offset> <file> [...]` | Flash one or more firmware segments to all target devices. |
 | `erase_flash` | Erase the entire flash memory on all target devices. |
+| `erase_region <offset> <size>` | Erase a specific region of flash memory. |
 
 ---
 
@@ -131,6 +132,21 @@ EspTool_Multi -p COM8,COM9 -b 115200 erase_flash
 All ports erased successfully.
 ```
 
+### `erase_region`
+
+Erases a specific region of flash memory on all target devices in parallel. Both `<offset>` and `<size>` must be aligned to the flash sector size (typically 4096 / 0x1000 bytes).
+
+```bash
+# Erase the filesystem partition (768KB at 0x300000)
+EspTool_Multi -p COM8,COM9,COM10 erase_region 0x300000 0xC0000
+
+# Erase the app partition (3MB at 0x10000)
+EspTool_Multi -p COM8 erase_region 0x10000 0x2F0000
+
+# Erase NVS (128KB at 0x3C0000)
+EspTool_Multi -p COM8,COM9 erase_region 0x3C0000 0x20000
+```
+
 ### `write_flash`
 
 Flash one or more firmware segments to all target devices. Provide `<offset> <file>` pairs after the command. Offsets can be hex (`0x1000`) or decimal (`4096`).
@@ -204,6 +220,13 @@ EspTool_Multi -p COM8,COM9,COM10 write_flash \
     0x8000   partitions.bin \
     0x10000  firmware.bin \
     0x300000 littlefs.bin
+```
+
+### Erase only the filesystem, then re-flash it
+
+```bash
+EspTool_Multi -p COM8,COM9,COM10 erase_region 0x300000 0xC0000
+EspTool_Multi -p COM8,COM9,COM10 write_flash 0x300000 littlefs.bin
 ```
 
 ### Two boards
@@ -420,6 +443,9 @@ var progress = new Progress<ParallelFlashProgress>(p =>
 
 // Erase all boards
 var eraseResult = await flasher.EraseAsync(ports, options, progress);
+
+// Or erase just a region (offset, size)
+var regionResult = await flasher.EraseRegionAsync(ports, 0x300000, 0xC0000, options, progress);
 
 // Flash all boards
 var firmware = new FirmwareProvider(

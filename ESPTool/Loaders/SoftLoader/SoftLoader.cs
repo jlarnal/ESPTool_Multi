@@ -128,6 +128,23 @@ namespace EspDotNet.Loaders.SoftLoader
                 throw new InvalidOperationException("Failed to erase flash memory.");
         }
 
+        /// <summary>
+        /// Erases a region of flash memory at the given offset and size.
+        /// Both offset and size must be aligned to the flash sector size (typically 4096 bytes).
+        /// </summary>
+        public async Task EraseRegionAsync(uint offset, uint size, CancellationToken token)
+        {
+            var request = new RequestCommandBuilder()
+                .WithCommand(0xD1)
+                .AppendPayload(BitConverter.GetBytes(offset))
+                .AppendPayload(BitConverter.GetBytes(size))
+                .Build();
+
+            var response = await _commandExecutor.ExecuteCommandAsync(request, token);
+            if (!response.Success)
+                throw new InvalidOperationException($"Failed to erase flash region at 0x{offset:X} size 0x{size:X}.");
+        }
+
 
 
 

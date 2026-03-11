@@ -18,7 +18,8 @@ static async Task<int> RunAsync(string[] args)
         return 0;
     }
 
-    if (!TryParseArgs(args, out var command, out var ports, out var baudRate, out var verify, out var segments, out var error))
+    if (!TryParseArgs(args, out var command, out var ports, out var baudRate, out var verify,
+        out var segments, out var eraseOffset, out var eraseSize, out var error))
     {
         Console.Error.WriteLine($"Error: {error}");
         Console.Error.WriteLine("Run with --help for usage information.");
@@ -49,6 +50,10 @@ static async Task<int> RunAsync(string[] args)
         {
             result = await flasher.EraseAsync(ports, options, progress, cts.Token);
         }
+        else if (command == "erase_region")
+        {
+            result = await flasher.EraseRegionAsync(ports, eraseOffset, eraseSize, options, progress, cts.Token);
+        }
         else
         {
             var firmware = LoadFirmware(segments);
@@ -71,7 +76,7 @@ static async Task<int> RunAsync(string[] args)
         }
 
         Console.WriteLine();
-        var verb = command == "erase_flash" ? "erased" : "flashed";
+        var verb = command.StartsWith("erase") ? "erased" : "flashed";
         Console.WriteLine($"All ports {verb} successfully.");
         return 0;
     }
@@ -104,6 +109,8 @@ static bool TryParseArgs(
     out int baudRate,
     out bool verify,
     out List<(uint offset, string filePath)> segments,
+    out uint eraseOffset,
+    out uint eraseSize,
     out string? error)
 {
     command = "";
@@ -111,6 +118,8 @@ static bool TryParseArgs(
     baudRate = 460800;
     verify = true;
     segments = new List<(uint, string)>();
+    eraseOffset = 0;
+    eraseSize = 0;
     error = null;
 
     int i = 0;
@@ -148,6 +157,25 @@ static bool TryParseArgs(
 
             case "erase_flash":
                 command = "erase_flash";
+                break;
+
+            case "erase_region":
+                command = "erase_region";
+                if (i + 2 >= args.Length)
+                {
+                    error = "erase_region requires <offset> <size>.";
+                    return false;
+                }
+                if (!TryParseOffset(args[++i], out eraseOffset))
+                {
+                    error = $"Invalid erase offset: '{args[i]}'. Use hex (0x1000) or decimal.";
+                    return false;
+                }
+                if (!TryParseOffset(args[++i], out eraseSize))
+                {
+                    error = $"Invalid erase size: '{args[i]}'. Use hex (0x1000) or decimal.";
+                    return false;
+                }
                 break;
 
             case "write_flash":
@@ -191,7 +219,7 @@ static bool TryParseArgs(
 
     if (string.IsNullOrEmpty(command))
     {
-        error = "No command specified. Use 'write_flash' or 'erase_flash'.";
+        error = "No command specified. Use 'write_flash', 'erase_flash', or 'erase_region'.";
         return false;
     }
 
@@ -236,6 +264,10 @@ static void PrintHelp()
         erase_flash
             Erase the entire flash memory on all target devices.
 
+        erase_region <offset> <size>
+            Erase a region of flash at <offset> for <size> bytes.
+            Both must be aligned to sector size (4096 bytes).
+
     OPTIONS:
         -p, --port <PORTS>  Serial port(s), comma-separated.
                             Single port:    -p COM8
@@ -254,6 +286,9 @@ static void PrintHelp()
     EXAMPLES:
         Erase all boards:
             EspTool_Multi -p COM8,COM9,COM10 erase_flash
+
+        Erase the filesystem partition (768KB at 0x300000):
+            EspTool_Multi -p COM8,COM9,COM10 erase_region 0x300000 0xC0000
 
         Flash a single board:
             EspTool_Multi -p COM8 write_flash 0x0 bootloader.bin 0x8000 partitions.bin 0x10000 app.bin

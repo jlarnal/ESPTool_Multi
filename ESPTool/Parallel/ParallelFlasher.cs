@@ -70,6 +70,63 @@ public class ParallelFlasher
         }
     }
 
+    public async Task<ParallelFlashResult> EraseRegionAsync(
+        IReadOnlyList<string> ports,
+        uint offset,
+        uint size,
+        ParallelFlashOptions? options = null,
+        IProgress<ParallelFlashProgress>? progress = null,
+        CancellationToken token = default)
+    {
+        options ??= new ParallelFlashOptions();
+        var contexts = new List<PortContext>();
+
+        try
+        {
+            contexts = await SetupAllPortsAsync(ports, options, progress, token);
+
+            var regionName = $"0x{offset:X}+0x{size:X}";
+            var healthy = contexts.Where(c => !c.Failed).ToList();
+            var eraseTasks = healthy.Select(async ctx =>
+            {
+                try
+                {
+                    Report(progress, ctx.PortName, "ERASE", null, regionName);
+                    await ctx.SoftLoader!.EraseRegionAsync(offset, size, token);
+                    Report(progress, ctx.PortName, "ERASE", 100, regionName);
+                }
+                catch (Exception ex)
+                {
+                    MarkFailed(ctx, $"Erase region failed: {ex.Message}");
+                }
+            });
+            await Task.WhenAll(eraseTasks);
+
+            foreach (var ctx in contexts.Where(c => !c.Failed))
+            {
+                Report(progress, ctx.PortName, "RESET", null, "resetting...");
+                await _toolbox.ResetDeviceAsync(ctx.Communicator, token);
+                Report(progress, ctx.PortName, "RESET", 100, "complete");
+            }
+
+            return new ParallelFlashResult
+            {
+                Ports = contexts.Select(c => new PortResult
+                {
+                    PortName = c.PortName,
+                    Success = !c.Failed,
+                    FailureReason = c.FailureReason
+                }).ToList(),
+                RetryCommand = null
+            };
+        }
+        finally
+        {
+            foreach (var ctx in contexts)
+                ctx.Dispose();
+        }
+    }
+
     public async Task<ParallelFlashResult> FlashAsync(
         IReadOnlyList<string> ports,
         IFirmwareProvider firmware,
