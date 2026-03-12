@@ -263,12 +263,17 @@ public class ParallelFlasher
             uint blocks = (uint)compressedData.Length / blockSize;
             if (compressedData.Length % blockSize != 0) blocks++;
 
+            // Progress step: 2% for segments < 4MB, 1% for >= 4MB
+            int progressStep = data.Length < 4 * 1024 * 1024 ? 2 : 1;
+            var lastReportedPct = new Dictionary<string, int>();
+
             // FlashDeflBegin on all healthy ports
             foreach (var ctx in healthy)
             {
                 try
                 {
                     Report(progress, ctx.PortName, "FLASH", 0, segmentName);
+                    lastReportedPct[ctx.PortName] = 0;
                     await ctx.SoftLoader!.FlashDeflBeginAsync(
                         segment.Size, blocks, blockSize, segment.Offset, token);
                 }
@@ -293,7 +298,12 @@ public class ParallelFlasher
                     {
                         await ctx.SoftLoader!.FlashDeflDataAsync(blockData, blockIndex, token);
                         int pct = (int)((blockIndex + 1) * 100 / blocks);
-                        Report(progress, ctx.PortName, "FLASH", pct, segmentName);
+                        int lastPct = lastReportedPct.GetValueOrDefault(ctx.PortName, 0);
+                        if (pct >= 100 || pct >= lastPct + progressStep)
+                        {
+                            Report(progress, ctx.PortName, "FLASH", pct, segmentName);
+                            lastReportedPct[ctx.PortName] = pct;
+                        }
                     }
                     catch (Exception ex)
                     {
