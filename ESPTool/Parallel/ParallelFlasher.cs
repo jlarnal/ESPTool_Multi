@@ -49,6 +49,7 @@ public class ParallelFlasher
             {
                 Report(progress, ctx.PortName, "RESET", null, "resetting...");
                 await _toolbox.ResetDeviceAsync(ctx.Communicator, token);
+                ctx.Communicator.ClearBuffer();
                 Report(progress, ctx.PortName, "RESET", 100, "complete");
             }
 
@@ -106,6 +107,7 @@ public class ParallelFlasher
             {
                 Report(progress, ctx.PortName, "RESET", null, "resetting...");
                 await _toolbox.ResetDeviceAsync(ctx.Communicator, token);
+                ctx.Communicator.ClearBuffer();
                 Report(progress, ctx.PortName, "RESET", 100, "complete");
             }
 
@@ -158,6 +160,9 @@ public class ParallelFlasher
             {
                 Report(progress, ctx.PortName, "RESET", null, "resetting...");
                 await _toolbox.ResetDeviceAsync(ctx.Communicator, token);
+                // Discard any boot log data the ESP32 sends after reset,
+                // so SerialPort.Close() won't deadlock on pending I/O.
+                ctx.Communicator.ClearBuffer();
                 Report(progress, ctx.PortName, "RESET", 100, "complete");
             }
 

@@ -48,6 +48,12 @@ namespace EspDotNet.Communication
         {
             if (_serialPort.IsOpen)
             {
+                try
+                {
+                    _serialPort.DiscardInBuffer();
+                    _serialPort.DiscardOutBuffer();
+                }
+                catch { }
                 _serialPort.Close();
             }
         }
@@ -138,6 +144,15 @@ namespace EspDotNet.Communication
         {
             if (_serialPort.IsOpen)
             {
+                try
+                {
+                    // Discard buffers before closing to prevent the well-known
+                    // .NET SerialPort.Close() deadlock on Windows when the device
+                    // is sending data (e.g. ESP32 boot log after reset).
+                    _serialPort.DiscardInBuffer();
+                    _serialPort.DiscardOutBuffer();
+                }
+                catch { /* Port may already be in a bad state */ }
                 _serialPort.Close();
             }
             _serialPort.Dispose();
